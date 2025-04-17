@@ -1,0 +1,9 @@
+{
+  "domain": "broadlink_cover",
+  "name": "Broadlink RF Cover",
+  "version": "1.0",
+  "documentation": "https://github.com/yourusername/broadlink_cover",
+  "dependencies": [],
+  "codeowners": ["@duku602"],
+  "requirements": []
+}

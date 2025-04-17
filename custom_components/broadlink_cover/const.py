@@ -1,0 +1,2 @@
+DOMAIN = "broadlink_cover"
+

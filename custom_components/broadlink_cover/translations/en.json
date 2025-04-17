@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add Broadlink Cover",
+        "description": "Configure a time-based RF cover controlled via Broadlink",
+        "data": {
+          "name": "Cover name",
+          "remote_entity_id": "Remote entity",
+          "device": "Device name (from learned commands)",
+          "open": "Open command name",
+          "stop": "Stop command name",
+          "close": "Close command name",
+          "open_time": "Time to fully open (seconds)",
+          "close_time": "Time to fully close (seconds)"
+        }
+      }
+    }
+  }
+}
+

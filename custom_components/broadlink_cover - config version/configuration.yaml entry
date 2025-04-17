@@ -1,0 +1,24 @@
+cover:
+  - platform: broadlink_cover
+    covers:
+      window_1:
+        name: "Window 1"
+        remote_entity_id: remote.rm4_pro
+        commands:
+          device: "Window_1"
+          open: "up"
+          stop: "stop"
+          close: "down"
+        open_time: 35
+        close_time: 34
+
+      window_2:
+        name: "Window 2"
+        remote_entity_id: remote.rm4_pro
+        commands:
+          device: "Window_2"
+          open: "up"
+          stop: "stop"
+          close: "down"
+        open_time: 35
+        close_time: 34

@@ -1,0 +1,11 @@
+{
+  "domain": "broadlink_cover",
+  "name": "Broadlink Cover",
+  "version": "1.0",
+  "config_flow": true,
+  "documentation": "https://example.com",
+  "requirements": [],
+  "dependencies": ["remote"],
+  "codeowners": ["@yourgithubusername"]
+}
+
