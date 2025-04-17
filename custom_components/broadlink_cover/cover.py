@@ -2,8 +2,7 @@ import asyncio
 import time
 import logging
 
-from homeassistant.components.cover import CoverEntity
-from homeassistant.components.cover import CoverEntityFeature
+from homeassistant.components.cover import CoverEntity, CoverEntityFeature
 from homeassistant.helpers.restore_state import RestoreEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,6 +54,10 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
         self._last_direction = None
         self._move_task = None
 
+        # Track if the cover is opening or closing
+        self._is_opening = False
+        self._is_closing = False
+
     @property
     def name(self):
         """Return the name of the cover."""
@@ -63,7 +66,7 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
     @property
     def unique_id(self):
         """Return a unique ID for the cover (combines entry_id and device name)."""
-        return f"{self._entry_id}_{self._commands['device'].lower()}"
+        return f"broadlink_cover_{self._entry_id}_{self._commands['device'].lower()}"
 
     @property
     def supported_features(self):
@@ -76,9 +79,25 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
         return self._position == 0
 
     @property
+    def device_class(self):
+        return "shutter"  # or "blind" if preferred
+
+    @property
     def current_cover_position(self):
         """Return the current position of the cover (0-100)."""
+        if self._position is None:
+            return 0
         return round(self._position)
+
+    @property
+    def is_opening(self):
+        """Return True if the cover is currently opening."""
+        return self._is_opening
+
+    @property
+    def is_closing(self):
+        """Return True if the cover is currently closing."""
+        return self._is_closing
 
     async def async_added_to_hass(self):
         """Restore previous state and position on startup."""
@@ -106,6 +125,8 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
 
         await self._send_code("stop")
         self._is_moving = False
+        self._is_opening = False
+        self._is_closing = False
         self.async_write_ha_state()
 
     async def async_set_cover_position(self, **kwargs):
@@ -116,12 +137,24 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
 
     async def _move_cover(self, direction, target_position):
         """Move the cover to the target position."""
+        if self._move_task:
+            self._move_task.cancel()
+            try:
+                await self._move_task
+            except asyncio.CancelledError:
+                pass  # Let the cancelled task exit gracefully without sending stop
+
         await self._send_code(direction)
         self._is_moving = True
         self._last_direction = direction
 
-        if self._move_task:
-            self._move_task.cancel()
+        # Set opening or closing state based on direction
+        if direction == "open":
+            self._is_opening = True
+            self._is_closing = False
+        elif direction == "close":
+            self._is_closing = True
+            self._is_opening = False
 
         duration = self._calculate_duration(direction, target_position)
         self._move_task = self._hass.loop.create_task(
@@ -154,9 +187,13 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
                 self._position = min(100, self._position + delta)
             else:
                 self._position = max(0, self._position - delta)
+            raise  # re-raise so the caller (_move_cover) knows not to send stop
+        else:
+            await self._send_code("stop")  # only send stop if completed normally
         finally:
-            await self._send_code("stop")
             self._is_moving = False
+            self._is_opening = False
+            self._is_closing = False
             self.async_write_ha_state()
 
     async def _send_code(self, command_key):
