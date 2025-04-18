@@ -140,21 +140,19 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
         if self._move_task:
             self._move_task.cancel()
             try:
-                await self._move_task
+                await self._move_task  # Now we wait to update position after cancel
             except asyncio.CancelledError:
-                pass  # Let the cancelled task exit gracefully without sending stop
+                pass
+
+        # Adjust direction if same as previous and target is same — skip redundant moves
+        if target_position == self._position:
+            return
 
         await self._send_code(direction)
         self._is_moving = True
         self._last_direction = direction
-
-        # Set opening or closing state based on direction
-        if direction == "open":
-            self._is_opening = True
-            self._is_closing = False
-        elif direction == "close":
-            self._is_closing = True
-            self._is_opening = False
+        self._is_opening = direction == "open"
+        self._is_closing = direction == "close"
 
         duration = self._calculate_duration(direction, target_position)
         self._move_task = self._hass.loop.create_task(
@@ -171,25 +169,31 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
             return (distance / 100) * self._close_time
 
     async def _timed_move(self, direction, duration, target_position):
-        """Move the cover over a specified duration."""
+        """Move the cover over a specified duration, updating the position smoothly."""
         start_time = time.time()
+        update_interval = 0.5
+        steps = max(1, int(duration / update_interval))
+        step_duration = duration / steps
+
+        start_position = self._position
+        position_delta = target_position - start_position
+
         try:
-            await asyncio.sleep(duration)
+            for step in range(1, steps + 1):
+                await asyncio.sleep(step_duration)
+                progress = step / steps
+                self._position = start_position + position_delta * progress
+                self.async_write_ha_state()
+
+            # Final correction
             self._position = target_position
+            await self._send_code("stop")
         except asyncio.CancelledError:
             elapsed = time.time() - start_time
-            delta = (
-                elapsed / self._open_time * 100
-                if direction == "open"
-                else elapsed / self._close_time * 100
-            )
-            if direction == "open":
-                self._position = min(100, self._position + delta)
-            else:
-                self._position = max(0, self._position - delta)
-            raise  # re-raise so the caller (_move_cover) knows not to send stop
-        else:
-            await self._send_code("stop")  # only send stop if completed normally
+            progress = min(1.0, elapsed / duration)
+            self._position = start_position + position_delta * progress
+            self.async_write_ha_state()
+            raise
         finally:
             self._is_moving = False
             self._is_opening = False
