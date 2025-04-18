@@ -123,7 +123,10 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
             self._move_task.cancel()
             self._move_task = None
 
-        await self._send_code("stop")
+        # Don't send stop command if already at position 0 or 100
+        if self._position != 0 and self._position != 100:
+            await self._send_code("stop")
+
         self._is_moving = False
         self._is_opening = False
         self._is_closing = False
@@ -187,7 +190,9 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
 
             # Final correction
             self._position = target_position
-            await self._send_code("stop")
+            # Only send stop command if not at 0 or 100
+            if self._position != 0 and self._position != 100:
+                await self._send_code("stop")
         except asyncio.CancelledError:
             elapsed = time.time() - start_time
             progress = min(1.0, elapsed / duration)
@@ -219,4 +224,3 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
             },
             blocking=True,
         )
-
