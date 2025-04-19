@@ -26,12 +26,11 @@ class BroadlinkCoverConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required("open"): str,
                 vol.Required("stop"): str,
                 vol.Required("close"): str,
-                vol.Optional("open_time", default=15): int,
-                vol.Optional("close_time", default=15): int,
+                vol.Optional("open_time", default=35): int,
+                vol.Optional("close_time", default=34): int,
             }
         )
 
         return self.async_show_form(
             step_id="user", data_schema=data_schema, errors=errors
         )
-

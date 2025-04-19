@@ -3,9 +3,10 @@
   "name": "Broadlink Cover",
   "version": "1.0",
   "config_flow": true,
+  "translations": ["en"],
   "documentation": "https://example.com",
   "requirements": [],
   "dependencies": ["remote"],
-  "codeowners": ["@yourgithubusername"]
+  "codeowners": ["@yourgithubusername"],
+  "logo": "https://brands.home-assistant.io/broadlink/dark_icon.png"
 }
-
