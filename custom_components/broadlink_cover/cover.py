@@ -157,6 +157,11 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
         self._is_opening = direction == "open"
         self._is_closing = direction == "close"
 
+        # ⚡ Instant fractional bump (like in JS code)
+        bump = 1 if direction == "open" else -1
+        self._position = max(0, min(100, self._position + bump))
+        self.async_write_ha_state()
+
         duration = self._calculate_duration(direction, target_position)
         self._move_task = self._hass.loop.create_task(
             self._timed_move(direction, duration, target_position)
@@ -193,12 +198,14 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
             # Only send stop command if not at 0 or 100
             if self._position != 0 and self._position != 100:
                 await self._send_code("stop")
+
         except asyncio.CancelledError:
             elapsed = time.time() - start_time
             progress = min(1.0, elapsed / duration)
             self._position = start_position + position_delta * progress
             self.async_write_ha_state()
             raise
+
         finally:
             self._is_moving = False
             self._is_opening = False
