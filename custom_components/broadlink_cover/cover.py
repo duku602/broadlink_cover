@@ -151,6 +151,7 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
         if target_position == self._position:
             return
 
+        # Send the initial command to start moving
         await self._send_code(direction)
         self._is_moving = True
         self._last_direction = direction
@@ -163,14 +164,11 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
         self._position = max(0, min(100, self._position + bump))
         self.async_write_ha_state()
 
+        # Calculate the duration based on direction and target position
         duration = self._calculate_duration(direction, target_position)
 
-        if duration <= 0.3:
-            if round(target_position) != round(self._position):
-                _LOGGER.warning(
-                    f"[{self._name}] Skipping move: target={target_position}, current={self._position}, direction={direction}, calculated duration={duration:.4f}"
-                )
-            return
+        if duration <= 0:
+            duration = 0.1  # Minimum duration to avoid division by zero
 
         self._move_task = self._hass.loop.create_task(
             self._timed_move(direction, duration, target_position)
