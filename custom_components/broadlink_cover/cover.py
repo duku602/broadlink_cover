@@ -156,6 +156,7 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
         self._last_direction = direction
         self._is_opening = direction == "open"
         self._is_closing = direction == "close"
+        self.async_write_ha_state() # Update state immediately for homekit
 
         # ⚡ Instant fractional bump (like in JS code)
         bump = 1 if direction == "open" else -1
@@ -163,6 +164,14 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
         self.async_write_ha_state()
 
         duration = self._calculate_duration(direction, target_position)
+
+        if duration <= 0.3:
+            if round(target_position) != round(self._position):
+                _LOGGER.warning(
+                    f"[{self._name}] Skipping move: target={target_position}, current={self._position}, direction={direction}, calculated duration={duration:.4f}"
+                )
+            return
+
         self._move_task = self._hass.loop.create_task(
             self._timed_move(direction, duration, target_position)
         )
@@ -179,7 +188,7 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
     async def _timed_move(self, direction, duration, target_position):
         """Move the cover over a specified duration, updating the position smoothly."""
         start_time = time.time()
-        update_interval = 0.5
+        update_interval = 0.25  # seconds
         steps = max(1, int(duration / update_interval))
         step_duration = duration / steps
 

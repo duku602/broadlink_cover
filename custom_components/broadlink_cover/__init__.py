@@ -6,7 +6,7 @@ async def async_setup_entry(hass, entry):
     hass.data[DOMAIN][entry.entry_id] = entry.data
 
     # Use the correct method for forwarding the entry to the cover platform
-    await hass.config_entries.async_forward_entry_setup(entry, "cover")
+    await hass.config_entries.async_forward_entry_setups(entry, ["cover"])
     return True
 
 async def async_unload_entry(hass, entry):
