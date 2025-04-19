@@ -39,6 +39,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
     """Representation of a Broadlink RF cover."""
 
+    DEBOUNCE_DELAY = 1  # seconds
+
     def __init__(self, hass, name, remote_entity_id, commands, open_time, close_time, entry_id):
         """Initialize the cover entity."""
         self._hass = hass
@@ -53,6 +55,10 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
         self._is_moving = False
         self._last_direction = None
         self._move_task = None
+
+        self._debounce_task = None
+        self._debounce_target_position = None
+        self._last_debounce_time = 0
 
         # Track if the cover is opening or closing
         self._is_opening = False
@@ -133,10 +139,28 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
         self.async_write_ha_state()
 
     async def async_set_cover_position(self, **kwargs):
-        """Set the position of the cover."""
+        """Set the position of the cover with debounce."""
         position = kwargs.get("position", self._position)
-        direction = "open" if position > self._position else "close"
-        await self._move_cover(direction, position)
+        self._debounce_target_position = position
+        now = time.time()
+        self._last_debounce_time = now
+
+        if self._debounce_task:
+            self._debounce_task.cancel()
+
+        async def _delayed_set(debounce_time):
+            try:
+                await asyncio.sleep(self.DEBOUNCE_DELAY)
+                # If another task started after this one, skip
+                if debounce_time != self._last_debounce_time:
+                    return
+
+                direction = "open" if self._debounce_target_position > self._position else "close"
+                await self._move_cover(direction, self._debounce_target_position)
+            except asyncio.CancelledError:
+                pass
+
+        self._debounce_task = self._hass.loop.create_task(_delayed_set(now))
 
     async def _move_cover(self, direction, target_position):
         """Move the cover to the target position."""
@@ -148,7 +172,7 @@ class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
                 pass
 
         # Adjust direction if same as previous and target is same — skip redundant moves
-        if target_position == self._position:
+        if target_position == round(self._position):
             return
 
         # Send the initial command to start moving
