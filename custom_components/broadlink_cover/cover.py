@@ -39,7 +39,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class BroadlinkRFTimeCover(CoverEntity, RestoreEntity):
     """Representation of a Broadlink RF cover."""
 
-    DEBOUNCE_DELAY = 1  # seconds
+    DEBOUNCE_DELAY = 2.5  # seconds
 
     def __init__(self, hass, name, remote_entity_id, commands, open_time, close_time, entry_id):
         """Initialize the cover entity."""
